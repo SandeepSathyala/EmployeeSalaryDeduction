@@ -3,6 +3,7 @@ package com.example.employeesalarydeduction.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.Date;
 
 @AllArgsConstructor
@@ -25,10 +26,10 @@ public class Employee {
     private String email;
 
     @Column(name = "date_of_joining")
-    private Date doj;
+    private LocalDate doj;
 
     @Column(name = "phone_number")
-    private long phoneNumber;
+    private String phoneNumber;
 
     @Column(name = "salary_for_month")
     private double salary;

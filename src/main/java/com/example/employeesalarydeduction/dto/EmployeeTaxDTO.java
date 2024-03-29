@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class EmployeeTaxDTO {
 
-    private String employeeId;
+    private Long employeeId;
     private String firstName;
     private String lastName;
     private double yearlySalary;
