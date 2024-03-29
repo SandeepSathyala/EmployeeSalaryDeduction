@@ -3,18 +3,15 @@ package com.example.employeesalarydeduction.servicde;
 import com.example.employeesalarydeduction.dto.EmployeeTaxDTO;
 import com.example.employeesalarydeduction.model.Employee;
 import com.example.employeesalarydeduction.repo.EmployeeRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class EmployeeService {
-
-    private static final Logger logger = LoggerFactory.getLogger(EmployeeService.class);
 
     private final EmployeeRepository employeeRepository;
 
@@ -22,70 +19,79 @@ public class EmployeeService {
         this.employeeRepository = employeeRepository;
     }
 
-
     public Employee createEmployee(Employee employee) {
-        try {
-            return employeeRepository.save(employee);
-        } catch (Exception e) {
-            logger.error("An error occurred while creating employee: " + e.getMessage(), e);
-            throw new RuntimeException("An error occurred while creating employee: " + e.getMessage(), e);
-        }
-    }
-    public List<EmployeeTaxDTO> calculateTaxForCurrentFinancialYear(LocalDate startDate, LocalDate endDate) {
-        List<Employee> employees = employeeRepository.findByDojBetween(startDate, endDate);
-        List<EmployeeTaxDTO> employeeTaxDTOList = new ArrayList<>();
-        try {
-            for (Employee employee : employees) {
-//                double yearlySalary = calculateYearlySalary(employee);
-                double yearlySalary = 0;
-                double taxAmount = calculateTaxAmount(yearlySalary);
-                double cessAmount = calculateCessAmount(yearlySalary);
-
-                EmployeeTaxDTO employeeTaxDTO = new EmployeeTaxDTO();
-                employeeTaxDTO.setEmployeeId(employee.getEmployeeId());
-                employeeTaxDTO.setFirstName(employee.getFirstName());
-                employeeTaxDTO.setLastName(employee.getLastName());
-                employeeTaxDTO.setYearlySalary(yearlySalary);
-                employeeTaxDTO.setTaxAmount(taxAmount);
-                employeeTaxDTO.setCessAmount(cessAmount);
-
-                employeeTaxDTOList.add(employeeTaxDTO);
-            }
-        } catch (Exception e) {
-            logger.error("An error occurred while calculating tax: " + e.getMessage(), e);
-            throw new RuntimeException("An error occurred while calculating tax: " + e.getMessage(), e);
-        }
-        return employeeTaxDTOList;
+        validateEmployeeData(employee);
+        return employeeRepository.save(employee);
     }
 
+    public List<EmployeeTaxDTO> calculateTaxForCurrentFinancialYear() {
+        LocalDate startDate = LocalDate.of(LocalDate.now().minusYears(1).getYear(), 4, 1);
+        LocalDate endDate = LocalDate.of(LocalDate.now().getYear(), 3, 31);
 
+        return employeeRepository.findAll().stream()
+                .map(employee -> {
+                    double yearlySalary = calculateYearlySalary(employee, startDate, endDate);
+                    double taxAmount = calculateTaxAmount(yearlySalary);
+                    double cessAmount = calculateCessAmount(yearlySalary);
+
+                    return new EmployeeTaxDTO(
+                            employee.getEmployeeId(),
+                            employee.getFirstName(),
+                            employee.getLastName(),
+                            employee.getDoj(),
+                            yearlySalary,
+                            taxAmount,
+                            cessAmount
+                    );
+                })
+                .collect(Collectors.toList());
+    }
+
+    private double calculateYearlySalary(Employee employee, LocalDate startDate, LocalDate endDate) {
+        double totalSalary = 0.0;
+        LocalDate doj = employee.getDoj();
+        LocalDate startMonth = doj.isAfter(startDate) ? doj : startDate;
+        LocalDate endMonth = endDate.isBefore(LocalDate.now()) ? endDate : LocalDate.now().minusDays(1);
+
+        if (doj.getMonthValue() != startMonth.getMonthValue()) {
+            int daysWorked = doj.lengthOfMonth() - doj.getDayOfMonth() + 1;
+            totalSalary += (employee.getSalary() / doj.lengthOfMonth()) * daysWorked;
+            startMonth = startMonth.plusMonths(1);
+        }
+
+        if (startMonth.isBefore(endMonth)) {
+            long totalMonths = ChronoUnit.MONTHS.between(startMonth.withDayOfMonth(1), endMonth.withDayOfMonth(1)) + 1;
+            totalSalary += employee.getSalary() * totalMonths;
+        }
+
+        return totalSalary;
+    }
 
     private double calculateTaxAmount(double yearlySalary) {
-        double taxAmount = 0.0;
-        if (yearlySalary > 2500000) {
-            taxAmount += (yearlySalary - 2500000) * 0.02;
-            yearlySalary = 2500000;
-        }
-        if (yearlySalary > 1000000) {
-            taxAmount += (yearlySalary - 1000000) * 0.2;
-            yearlySalary = 1000000;
-        }
-        if (yearlySalary > 500000) {
-            taxAmount += (yearlySalary - 500000) * 0.1;
-            yearlySalary = 500000;
-        }
-        if (yearlySalary > 250000) {
-            taxAmount += (yearlySalary - 250000) * 0.05;
-        }
-        return taxAmount;
+        if (yearlySalary <= 250000) return 0.0;
+        else if (yearlySalary <= 500000) return (yearlySalary - 250000) * 0.05;
+        else if (yearlySalary <= 1000000) return 12500 + (yearlySalary - 500000) * 0.1;
+        else return 62500 + (yearlySalary - 1000000) * 0.2;
     }
 
     private double calculateCessAmount(double yearlySalary) {
-        if (yearlySalary > 2500000) {
-            return (yearlySalary - 2500000) * 0.02;
-        }
-        return 0.0;
+        return yearlySalary > 2500000 ? (yearlySalary - 2500000) * 0.02 : 0.0;
     }
 
-
+    private void validateEmployeeData(Employee employee) {
+        if (employee.getEmployeeId() != null)
+            throw new IllegalArgumentException("Employee ID should not be provided.");
+        if (employee.getFirstName() == null || employee.getFirstName().isEmpty())
+            throw new IllegalArgumentException("First Name is required.");
+        if (employee.getLastName() == null || employee.getLastName().isEmpty())
+            throw new IllegalArgumentException("Last Name is required.");
+        if (employee.getEmail() == null || employee.getEmail().isEmpty())
+            throw new IllegalArgumentException("Email is required.");
+        if (employee.getPhoneNumber() == null || employee.getPhoneNumber().isEmpty())
+            throw new IllegalArgumentException("Phone Number(s) is required.");
+        if (employee.getDoj() == null)
+            throw new IllegalArgumentException("Date of Joining is required.");
+        if (employee.getSalary() <= 0)
+            throw new IllegalArgumentException("Salary should be greater than zero.");
+    }
 }

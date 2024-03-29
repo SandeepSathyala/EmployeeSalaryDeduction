@@ -33,4 +33,5 @@ public class Employee {
 
     @Column(name = "salary_for_month")
     private double salary;
+
 }
