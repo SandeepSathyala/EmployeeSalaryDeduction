@@ -1,4 +1,4 @@
-package com.example.employeesalarydeduction.servicde;
+package com.example.employeesalarydeduction.service;
 
 import com.example.employeesalarydeduction.dto.EmployeeTaxDTO;
 import com.example.employeesalarydeduction.model.Employee;
