@@ -34,6 +34,10 @@ public class EmployeeService {
                     double taxAmount = calculateTaxAmount(yearlySalary);
                     double cessAmount = calculateCessAmount(yearlySalary);
 
+                    // Deduct tax and cess from the yearly salary to get salary after tax deduction
+                    double salaryAfterTaxYearly = yearlySalary - taxAmount - cessAmount;
+                    double salary = salaryAfterTaxYearly/12;
+
                     return new EmployeeTaxDTO(
                             employee.getEmployeeId(),
                             employee.getFirstName(),
@@ -41,11 +45,14 @@ public class EmployeeService {
                             employee.getDoj(),
                             yearlySalary,
                             taxAmount,
-                            cessAmount
+                            cessAmount,
+                            salaryAfterTaxYearly,
+                            salary
                     );
                 })
                 .collect(Collectors.toList());
     }
+
 
     private double calculateYearlySalary(Employee employee, LocalDate startDate, LocalDate endDate) {
         double totalSalary = 0.0;

@@ -18,4 +18,7 @@ public class EmployeeTaxDTO {
     private double yearlySalary;
     private double taxAmount;
     private double cessAmount;
+//    private double lossOfPayPerDay;
+    private double salaryAfterTaxYearly;
+    private double salary;
 }
